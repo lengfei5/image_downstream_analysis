@@ -80,6 +80,7 @@ linear_interpolate_missing_frames = function(df)
 # each animal has 5 time points, each time point has 6 videos
 # total 5*5*6 = 150 videos
 ##########################################
+inputDir = "/groups/tanaka/People/current/jiwang/projects/image_analysis/results/light_dark_test/tables_tracking"
 
 all_animals = c('A39', 'A60', 'A51', 'A42', 'A34', 'A37', 'A27', 'A74', 'A58', 'A15', 'A5')
 
@@ -88,60 +89,55 @@ res = c()
 for(animal in all_animals)
 {
   # animal = 'A60'
-  
   cat(animal, '\n')
   
-  outDir = paste0(inputDir, animal)
+  #outDir = paste0(inputDir, animal)
   
-  if(!dir.exists(outDir)){
-    cat('no directory for : ', animal, '\n')
-  }else{
+  traces = list.files(path = inputDir, pattern = '*.csv', full.names = TRUE)
+  traces = traces[grep(paste0(animal, '_'), traces)]
+  
+  traces = traces[grep('_error.csv', traces, invert = TRUE)]
+  
+  cycles = traces[grep('_circle.csv', traces, invert = TRUE)]
+  traces = traces[grep('_circle.csv', traces, invert = TRUE)]
+  
+  cat(length(traces), ' traces and ', length(cycles), ' cycles\n')
+  
+  ff = basename(traces)
+  ff = gsub('.csv', '', ff)
+  
+  for(n in 1:length(ff))
+  {
+    # n = 1 
+    cc = unlist(strsplit(ff[n], '_'))
+    cc = c(cc[1], cc[2], paste0(cc[3], '_', cc[4]))
     
-    traces = list.files(path = outDir, pattern = '*.csv', full.names = TRUE)
-    traces = traces[grep('_error.csv', traces, invert = TRUE)]
+    trc = read.csv(file = traces[n], row.names = c(1), header = TRUE)
+    trc = data.frame(trc)
+    colnames(trc) = c('frame', 'x', 'y')
     
-    cycles = traces[grep('_circle.csv', traces, invert = TRUE)]
-    traces = traces[grep('_circle.csv', traces, invert = TRUE)]
+    cyl = read.csv(file = paste0(inputDir, '/', ff[n], '_circle.csv'), row.names = c(1), header = TRUE)
+    cycle_y = cyl$y 
     
-    cat(length(traces), ' traces and ', length(cycles), ' cycles\n')
+    total_frames = max(trc$frame) - min(trc$frame) + 1
+    missing_frames = max(trc$frame) - min(trc$frame) + 1 - nrow(trc)
     
-    ff = basename(traces)
-    ff = gsub('.csv', '', ff)
+    cat('-- trace -- ', ff[n], '-- missing frame :', missing_frames,  '--\n')
     
-    for(n in 1:length(ff))
-    {
-      # n = 1 
-      cc = unlist(strsplit(ff[n], '_'))
-      cc = c(cc[1], cc[2], paste0(cc[3], '_', cc[4]))
-      
-      trc = read.csv(file = traces[n], row.names = c(1), header = TRUE)
-      trc = data.frame(trc)
-      colnames(trc) = c('frame', 'x', 'y')
-      
-      cyl = read.csv(file = paste0(outDir, '/', ff[n], '_circle.csv'), row.names = c(1), header = TRUE)
-      cycle_y = cyl$y 
-      
-      total_frames = max(trc$frame) - min(trc$frame) + 1
-      missing_frames = max(trc$frame) - min(trc$frame) + 1 - nrow(trc)
-      
-      cat('-- trace -- ', ff[n], '-- missing frame :', missing_frames,  '--\n')
-      
-      if(missing_frames > 50){
-        res = rbind(res, c(cc, total_frames, missing_frames, NA, NA))
-      }else{
-        if(missing_frames > 0){
-          trc = linear_interpolate_missing_frames(trc)
-        }
-        
-        nb_upper = length(which(trc$y < cycle_y))
-        nb_lower = length(which(trc$y > cycle_y))
-        nb_onDiameter = length(which(trc$y == cycle_y))
-        
-        pct_upper = nb_upper/nrow(trc)
-        pct_lower = nb_lower/nrow(trc)
-        res = rbind(res, c(cc, total_frames, missing_frames, pct_upper, pct_lower))
-        
+    if(missing_frames > 50){
+      res = rbind(res, c(cc, total_frames, missing_frames, NA, NA))
+    }else{
+      if(missing_frames > 0){
+        trc = linear_interpolate_missing_frames(trc)
       }
+      
+      nb_upper = length(which(trc$y < cycle_y))
+      nb_lower = length(which(trc$y > cycle_y))
+      nb_onDiameter = length(which(trc$y == cycle_y))
+      
+      pct_upper = nb_upper/nrow(trc)
+      pct_lower = nb_lower/nrow(trc)
+      res = rbind(res, c(cc, total_frames, missing_frames, pct_upper, pct_lower))
       
     }
     
@@ -161,13 +157,13 @@ res$nb_totalFrame = as.numeric(res$nb_totalFrame)
 res$nb_missingFrame = as.numeric(res$nb_missingFrame)
 
 
-saveRDS(res, file = paste0(resDir, '/res_tables_all_11animals_allTimepoints.rds'))
+saveRDS(res, file = paste0(resDir, '/res_tables_all_11animals_allTimepoints_updated_v1.rds'))
 
 
 ##########################################
 # QC and double check the numbers 
 ##########################################
-res = readRDS(file = paste0(resDir, '/res_tables_all_11animals_allTimepoints.rds'))
+res = readRDS(file = paste0(resDir, '/res_tables_all_11animals_allTimepoints_updated_v1.rds'))
 
 res = res[order(res$nb_totalFrame), ]
 
@@ -199,7 +195,7 @@ p1 <- ggplot(res, aes(x=condition, y=pct_upper, fill=condition)) +
 
 plot(p1)
 
-ggsave(filename =  paste0(resDir, '/results_timepoints_forAnaimals_v2.pdf'), width = 16, height = 8)
+ggsave(filename =  paste0(resDir, '/results_timepoints_forAnaimals_updated_v1.pdf'), width = 16, height = 8)
 
 
 
@@ -211,7 +207,14 @@ p2 <- ggplot(res, aes(x=animal, y=pct_upper, fill=animal)) +
 
 plot(p2)
 
-ggsave(filename =  paste0(resDir, '/results_animals_perTimepoints_v2.pdf'), width = 20, height = 8)
+ggsave(filename =  paste0(resDir, '/results_animals_perTimepoints_updated_v1.pdf'), width = 20, height = 8)
+
+
+##########################################
+# double check the updated video processing  
+##########################################
+errs = list.files(path = paste0(resDir, '/updated_tracking'), pattern = '*_error.csv', full.names = TRUE)
+#traces = traces[grep('_error.csv', traces, invert = TRUE)]
 
 
 
