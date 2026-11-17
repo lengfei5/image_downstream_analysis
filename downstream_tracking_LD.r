@@ -187,6 +187,7 @@ res$nb_missingFrame = as.numeric(res$nb_missingFrame)
 res$max_speed = as.numeric(res$max_speed)
 res$total_dist = as.numeric(res$total_dist)
 
+
 saveRDS(res, file = paste0(resDir, '/res_tables_all_11animals_allTimepoints_updated_v1.rds'))
 
 
@@ -218,11 +219,19 @@ head(res, 15)
 
 res = res[order(res$pct_upper), ]
 
-head(res[which(res$condition == "preONT" & res$animal == 'A58'), c(1:7)], 20)
+
+head(res[which(res$condition == "preONT"), c(1,2,3,6, 8,9)], 20)
+
+kk = which(res$condition == 'preONT')
+plot(res$total_dist[kk], res$pct_upper[kk])
+
+xx = res[which(res$condition == "preONT" & res$animal == 'A39'), ]
+xx = xx[order(xx$test_index), ]
 
 
 pcts = res$pct_upper[which(res$condition == 'preONT')]
 pcts = pcts[!is.na(pcts)]
+
 
 t.test(pcts, mu = 0.5, alternative = 'greater')
 
@@ -246,8 +255,7 @@ p1 <- ggplot(res, aes(x=condition, y=pct_upper, fill=condition)) +
 
 plot(p1)
 
-ggsave(filename =  paste0(resDir, '/results_timepoints_forAnaimals_updated_v1.pdf'), width = 16, height = 8)
-
+ggsave(filename =  paste0(resDir, '/results_timepoints_forAnaimals_updated_v2.pdf'), width = 16, height = 8)
 
 
 p2 <- ggplot(res, aes(x=animal, y=pct_upper, fill=animal)) + 
@@ -258,13 +266,14 @@ p2 <- ggplot(res, aes(x=animal, y=pct_upper, fill=animal)) +
 
 plot(p2)
 
-ggsave(filename =  paste0(resDir, '/results_animals_perTimepoints_updated_v1.pdf'), width = 20, height = 8)
+ggsave(filename =  paste0(resDir, '/results_animals_perTimepoints_updated_v2.pdf'), width = 20, height = 8)
+
 
 
 ##########################################
 # double check the updated video processing  
 ##########################################
-errs = list.files(path = paste0(resDir, '/updated_tracking'), pattern = '*_error.csv', full.names = TRUE)
+#errs = list.files(path = paste0(resDir, '/updated_tracking'), pattern = '*_error.csv', full.names = TRUE)
 #traces = traces[grep('_error.csv', traces, invert = TRUE)]
 
 
