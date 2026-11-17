@@ -68,6 +68,25 @@ linear_interpolate_missing_frames = function(df)
   
 }
 
+derivative <- function(values) {
+  n <- length(values)
+  
+  if (n < 3L) {
+    stop("At least three time points are required.")
+  }
+  #if (any(!is.finite(time)) || any(diff(time) <= 0)) {
+  #  stop("Time must be finite and strictly increasing.")
+  #}
+  
+  # Central differences (for regularly spaced time points)
+  #middle <- (values[3:n] - values[1:(n - 2)])
+    
+  return(
+    values[2:n] - values[1:(n-1)]     
+  )
+}
+
+
 ########################################################
 ########################################################
 # Section I: downstream analysis of light-dark test 
@@ -125,7 +144,7 @@ for(animal in all_animals)
     cat('-- trace -- ', ff[n], '-- missing frame :', missing_frames,  '--\n')
     
     if(missing_frames > 50){
-      res = rbind(res, c(cc, total_frames, missing_frames, NA, NA))
+      res = rbind(res, c(cc, total_frames, missing_frames, NA, NA, NA, NA))
     }else{
       if(missing_frames > 0){
         trc = linear_interpolate_missing_frames(trc)
@@ -135,9 +154,19 @@ for(animal in all_animals)
       nb_lower = length(which(trc$y > cycle_y))
       nb_onDiameter = length(which(trc$y == cycle_y))
       
+      
       pct_upper = nb_upper/nrow(trc)
       pct_lower = nb_lower/nrow(trc)
-      res = rbind(res, c(cc, total_frames, missing_frames, pct_upper, pct_lower))
+      
+      ## maximum of speed for QC
+      velocity_x = derivative(trc$x)
+      velocity_y = derivative(trc$y)
+      speed = sqrt(velocity_x^2 + velocity_y^2)
+      
+      max_speed = max(speed)
+      total_dist = sum(speed)
+      
+      res = rbind(res, c(cc, total_frames, missing_frames, pct_upper, pct_lower, max_speed, total_dist))
       
     }
     
@@ -149,13 +178,14 @@ res = data.frame(res)
 
 
 colnames(res) = c('animal', 'condition', 'test_index',
-                  'nb_totalFrame', 'nb_missingFrame', 'pct_upper', 'pct_lower')
+                  'nb_totalFrame', 'nb_missingFrame', 'pct_upper', 'pct_lower', 'max_speed', 'total_dist')
 
 res$pct_upper = as.numeric(res$pct_upper)
 res$pct_lower = as.numeric(res$pct_lower)
 res$nb_totalFrame = as.numeric(res$nb_totalFrame)
 res$nb_missingFrame = as.numeric(res$nb_missingFrame)
-
+res$max_speed = as.numeric(res$max_speed)
+res$total_dist = as.numeric(res$total_dist)
 
 saveRDS(res, file = paste0(resDir, '/res_tables_all_11animals_allTimepoints_updated_v1.rds'))
 
@@ -175,11 +205,32 @@ hist(as.numeric(res$pct_upper), breaks = 100); abline(v = 0.5, lwd = 2.0, col = 
 res = res[order(-res$nb_missingFrame), ]
 #head(res[which(!is.na(res$pct_upper)), ])
 
+head(res[, c(1:7)], 15)
+
+res = res[order(-res$max_speed), ]
+
+head(res, 15)
+
+
+res = res[order(res$total_dist), ]
+
 head(res, 15)
 
 res = res[order(res$pct_upper), ]
-head(res[which(res$condition == "preONT"), ], 20)
 
+head(res[which(res$condition == "preONT" & res$animal == 'A58'), c(1:7)], 20)
+
+
+pcts = res$pct_upper[which(res$condition == 'preONT')]
+pcts = pcts[!is.na(pcts)]
+
+t.test(pcts, mu = 0.5, alternative = 'greater')
+
+
+pcts = res$pct_upper
+pcts = pcts[!is.na(pcts)]
+
+t.test(pcts, mu = 0.5, alternative = 'greater')
 
 
 require(ggplot2)
